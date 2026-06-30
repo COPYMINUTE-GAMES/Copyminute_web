@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🐉 Click Slayer - Derrota al Dragón</title>
+    <style>
+        :root {
+            --bg: #1a0a2e;
+            --panel: #1e1233;
+            --gold: #f4b41a;
+            --hp-bar: #e74c3c;
+            --hp-bg: #3d1a1a;
+            --btn: #2a1a4a;
+            --btn-hover: #3d2a6a;
+            --text: #e0d8f0;
+            --accent: #c77dff;
+            --crit: #ff6b35;
+            --heal: #2ecc71;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: var(--bg);
+            background-image:
+                radial-gradient(ellipse at center, #1e1040 0%, #0a0518 60%),
+                radial-gradient(ellipse at 50% 120%, #3d1050 0%, transparent 50%);
+            font-family: 'Segoe UI', 'Cantarell', 'Arial', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            overflow-x: hidden;
+            cursor: default;
+        }
+
+        .game-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 18px;
+            padding: 20px;
+            max-width: 600px;
+            width: 95%;
+        }
+
+        /* ── Panel superior: oro y stats ── */
+        .top-bar {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+            justify-content: center;
+            width: 100%;
+        }
+
+        .stat-card {
+            background: var(--panel);
+            border: 2px solid #2a1850;
+            border-radius: 16px;
+            padding: 12px 20px;
+            text-align: center;
+            min-width: 90px;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+        }
+        .stat-card .label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: #9a8abf;
+            margin-bottom: 2px;
+        }
+        .stat-card .value {
+            font-size: 1.6rem;
+            font-weight: 800;
+            color: var(--gold);
+            text-shadow: 0 0 18px rgba(244, 180, 26, 0.5);
+        }
+        .stat-card .value.dps {
+            color: #e091ff;
+            text-shadow: 0 0 18px rgba(199, 125, 255, 0.5);
+            font-size: 1.1rem;
+        }
+
+        /* ── Zona del enemigo ── */
+        .enemy-zone {
+            position: relative;
+            width: 100%;
+            max-width: 420px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .enemy-name-level {
+            color: #d4c5f0;
+            font-size: 0.9rem;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            font-weight: 700;
+            text-shadow: 0 0 10px rgba(200, 160, 255, 0.6);
+        }
+        .enemy-name-level span {
+            color: var(--accent);
+            font-size: 1.1rem;
+        }
+
+        /* Barra de HP */
+        .hp-bar-outer {
+            width: 100%;
+            height: 22px;
+            background: var(--hp-bg);
+            border-radius: 20px;
+            overflow: hidden;
+            border: 2px solid #4a2020;
+            box-shadow: inset 0 3px 8px rgba(0, 0, 0, 0.5), 0 0 15px rgba(231, 76, 60, 0.2);
+            position: relative;
+        }
+        .hp-bar-inner {
+            height: 100%;
+            background: linear-gradient(180deg, #ff5c4a 0%, #c0392b 60%, #7f1d1d 100%);
+            border-radius: 20px;
+            transition: width 0.25s ease-out;
+            box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.2), 0 0 20px rgba(255, 60, 40, 0.5);
+            position: relative;
+        }
+        .hp-bar-inner.crit-flash {
+            animation: hpFlash 0.3s ease;
+        }
+        @keyframes hpFlash {
+            0%,
+            100% {
+                filter: brightness(1);
+            }
+            50% {
+                filter: brightness(2.5) drop-shadow(0 0 20px #ff0);
+            }
+        }
+        .hp-text {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 0.75rem;
+            color: #fff;
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+            pointer-events: none;
+            letter-spacing: 1px;
+        }
+
+        /* El enemigo clickeable */
+        .enemy-sprite {
+            width: 180px;
+            height: 180px;
+            cursor: pointer;
+            position: relative;
+            transition: transform 0.08s ease;
+            filter: drop-shadow(0 10px 30px rgba(255, 80, 20, 0.5));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 120px;
+            animation: floatIdle 3s ease-in-out infinite;
+        }
+        .enemy-sprite:active {
+            transform: scale(0.88);
+            filter: drop-shadow(0 0 50px rgba(255, 200, 50, 0.9)) brightness(1.3);
+            animation: none;
+        }
+        .enemy-sprite.shake {
+            animation: shake 0.35s ease !important;
+        }
+        @keyframes floatIdle {
+            0%,
+            100% {
+                transform: translateY(0);
+            }
+            50% {
+                transform: translateY(-12px);
+            }
+        }
+        @keyframes shake {
+            0%,
+            100% {
+                transform: translateX(0);
+            }
+            15% {
+                transform: translateX(-10px) rotate(-2deg);
+            }
+            30% {
+                transform: translateX(10px) rotate(2deg);
+            }
+            45% {
+                transform: translateX(-8px) rotate(-1deg);
+            }
+            60% {
+                transform: translateX(8px) rotate(1deg);
+            }
+            75% {
+                transform: translateX(-3px);
+            }
+            90% {
+                transform: translateX(3px);
+            }
+        }
+
+        /* Números de daño flotantes */
+        .floating-number {
+            position: absolute;
+            pointer-events: none;
+            font-weight: 900;
+            font-size: 1.6rem;
+            color: #fff;
+            text-shadow: 0 0 10px #ffcc00, 0 2px 4px rgba(0, 0, 0, 0.7);
+            animation: floatUp 0.9s ease-out forwards;
+            z-index: 10;
+            white-space: nowrap;
+        }
+        .floating-number.crit {
+            font-size: 2.4rem;
+            color: #ff6b35;
+            text-shadow: 0 0 20px #ff4500, 0 0 40px #ff6b35, 0 3px 6px rgba(0, 0, 0, 0.8);
+        }
+        .floating-number.gold-pop {
+            font-size: 1.2rem;
+            color: #f4b41a;
+            text-shadow: 0 0 15px #f4b41a, 0 2px 4px rgba(0, 0, 0, 0.7);
+        }
+        @keyframes floatUp {
+            0% {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+            40% {
+                opacity: 1;
+                transform: translateY(-50px) scale(1.3);
+            }
+            100% {
+                opacity: 0;
+                transform: translateY(-100px) scale(0.8);
+            }
+        }
+
+        /* Partículas de impacto */
+        .particle {
+            position: absolute;
+            pointer-events: none;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            animation: particleBurst 0.55s ease-out forwards;
+            z-index: 9;
+        }
+        @keyframes particleBurst {
+            0% {
+                opacity: 1;
+                transform: translate(0, 0) scale(1);
+            }
+            100% {
+                opacity: 0;
+                transform: translate(var(--dx), var(--dy)) scale(0);
+            }
+        }
+
+        /* ── Tienda ── */
+        .shop {
+            width: 100%;
+            max-width: 420px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .shop-title {
+            color: #c7b8e8;
+            font-size: 0.8rem;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            text-align: center;
+            margin-bottom: 2px;
+        }
+        .upgrade-btn {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--btn);
+            border: 2px solid #352560;
+            border-radius: 14px;
+            padding: 12px 16px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            color: var(--text);
+            font-weight: 600;
+            font-size: 0.85rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+        .upgrade-btn:hover {
+            background: var(--btn-hover);
+            border-color: #5a3d90;
+            box-shadow: 0 6px 20px rgba(100, 50, 180, 0.3);
+            transform: translateY(-2px);
+        }
+        .upgrade-btn:active {
+            transform: scale(0.97);
+            transition: transform 0.05s;
+        }
+        .upgrade-btn.locked {
+            opacity: 0.5;
+            cursor: not-allowed;
+            filter: grayscale(30%);
+        }
+        .upgrade-btn.locked:hover {
+            transform: none;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            border-color: #352560;
+            background: var(--btn);
+        }
+        .upgrade-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .upgrade-name {
+            font-weight: 700;
+            font-size: 0.9rem;
+        }
+        .upgrade-desc {
+            font-size: 0.7rem;
+            color: #a090c8;
+        }
+        .upgrade-cost {
+            font-weight: 800;
+            font-size: 0.9rem;
+            color: var(--gold);
+            text-shadow: 0 0 8px rgba(244, 180, 26, 0.4);
+            white-space: nowrap;
+        }
+        .upgrade-level {
+            background: #3d2060;
+            border-radius: 20px;
+            padding: 3px 10px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: #d4b8ff;
+            margin-left: 6px;
+        }
+
+        /* ── Mensaje de oleada ── */
+        .wave-msg {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            font-size: 2rem;
+            font-weight: 900;
+            color: #fff;
+            text-shadow: 0 0 30px #ffcc00, 0 0 60px #ff8800;
+            pointer-events: none;
+            z-index: 100;
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            text-align: center;
+        }
+        .wave-msg.show {
+            transform: translate(-50%, -50%) scale(1);
+        }
+        .wave-msg.hide {
+            transform: translate(-50%, -50%) scale(0);
+            transition: transform 0.2s ease-in;
+        }
+
+        /* ── Responsive ── */
+        @media (max-width: 480px) {
+            .enemy-sprite {
+                width: 140px;
+                height: 140px;
+                font-size: 90px;
+            }
+            .upgrade-btn {
+                padding: 10px 12px;
+                font-size: 0.75rem;
+            }
+            .stat-card {
+                padding: 8px 14px;
+                min-width: 70px;
+            }
+            .stat-card .value {
+                font-size: 1.3rem;
+            }
+            .floating-number {
+                font-size: 1.2rem;
+            }
+            .floating-number.crit {
+                font-size: 1.8rem;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="game-container">
+        <!-- Barra superior -->
+        <div class="top-bar">
+            <div class="stat-card">
+                <div class="label">💰 Oro</div>
+                <div class="value" id="goldDisplay">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">⚔️ Daño/Click</div>
+                <div class="value" id="clickDmgDisplay">1</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">⏳ DPS</div>
+                <div class="value dps" id="dpsDisplay">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">💥 Crítico</div>
+                <div class="value dps" id="critDisplay">5% / x2</div>
+            </div>
+        </div>
+
+        <!-- Zona enemigo -->
+        <div class="enemy-zone" id="enemyZone">
+            <div class="enemy-name-level">
+                🐉 <span id="enemyName">Dragón Bebé</span> — Nivel <span id="enemyLevel">1</span>
+            </div>
+            <div class="hp-bar-outer">
+                <div class="hp-bar-inner" id="hpBar" style="width: 100%;"></div>
+                <div class="hp-text" id="hpText">100 / 100</div>
+            </div>
+            <div class="enemy-sprite" id="enemySprite" title="¡Haz click para atacar!">
+                🐲
+            </div>
+        </div>
+
+        <!-- Tienda de mejoras -->
+        <div class="shop">
+            <div class="shop-title">🏪 Tienda de Mejoras</div>
+            <button class="upgrade-btn" id="btnSharpClaws" onclick="buyUpgrade('sharpClaws')">
+                <div class="upgrade-info">
+                    <span class="upgrade-name">🗡️ Garras Afiladas</span>
+                    <span class="upgrade-desc">+1 daño por click</span>
+                </div>
+                <span class="upgrade-cost" id="costSharpClaws">10 🪙</span>
+            </button>
+            <button class="upgrade-btn" id="btnCritChance" onclick="buyUpgrade('critChance')">
+                <div class="upgrade-info">
+                    <span class="upgrade-name">🎯 Puntería Letal</span>
+                    <span class="upgrade-desc">+5% probabilidad de crítico</span>
+                </div>
+                <span class="upgrade-cost" id="costCritChance">25 🪙</span>
+            </button>
+            <button class="upgrade-btn" id="btnCritPower" onclick="buyUpgrade('critPower')">
+                <div class="upgrade-info">
+                    <span class="upgrade-name">💥 Golpe Demoledor</span>
+                    <span class="upgrade-desc">+0.5x multiplicador crítico</span>
+                </div>
+                <span class="upgrade-cost" id="costCritPower">40 🪙</span>
+            </button>
+            <button class="upgrade-btn" id="btnAutoClicker" onclick="buyUpgrade('autoClicker')">
+                <div class="upgrade-info">
+                    <span class="upgrade-name">⚡ Espíritu Guerrero</span>
+                    <span class="upgrade-desc">+1 DPS automático</span>
+                </div>
+                <span class="upgrade-cost" id="costAutoClicker">50 🪙</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Mensaje de nueva oleada -->
+    <div class="wave-msg" id="waveMsg"></div>
+
+    <script>
+        (function() {
+            // ──────────── ESTADO DEL JUEGO ────────────
+            const state = {
+                gold: 0,
+                clickDamage: 1,
+                critChance: 0.05, // 5%
+                critMultiplier: 2.0,
+                dps: 0, // daño por segundo automático
+                enemyHP: 100,
+                enemyMaxHP: 100,
+                enemyLevel: 1,
+                enemyName: 'Dragón Bebé',
+                totalGoldEarned: 0,
+
+                // Costes base de mejoras
+                upgrades: {
+                    sharpClaws: { level: 0, baseCost: 10, costMult: 1.5 },
+                    critChance: { level: 0, baseCost: 25, costMult: 1.8 },
+                    critPower: { level: 0, baseCost: 40, costMult: 1.9 },
+                    autoClicker: { level: 0, baseCost: 50, costMult: 1.7 },
+                },
+
+                // Nombres de enemigos por nivel
+                enemyNames: [
+                    'Dragón Bebé', 'Dragón Joven', 'Dragón Adulto', 'Dragón Anciano',
+                    'Dragón de Fuego', 'Dragón de Hielo', 'Dragón Sombrío', 'Dragón Celestial',
+                    'Dragón Titán', 'Dragón Primordial', 'Señor Dragón', 'Emperador Dragón',
+                    'Dragón Divino', 'Dragón del Vacío', 'Dragón Infinito'
+                ],
+            };
+
+            // ──────────── ELEMENTOS DOM ────────────
+            const els = {
+                goldDisplay: document.getElementById('goldDisplay'),
+                clickDmgDisplay: document.getElementById('clickDmgDisplay'),
+                dpsDisplay: document.getElementById('dpsDisplay'),
+                critDisplay: document.getElementById('critDisplay'),
+                enemyName: document.getElementById('enemyName'),
+                enemyLevel: document.getElementById('enemyLevel'),
+                hpBar: document.getElementById('hpBar'),
+                hpText: document.getElementById('hpText'),
+                enemySprite: document.getElementById('enemySprite'),
+                enemyZone: document.getElementById('enemyZone'),
+                waveMsg: document.getElementById('waveMsg'),
+                btnSharpClaws: document.getElementById('btnSharpClaws'),
+                btnCritChance: document.getElementById('btnCritChance'),
+                btnCritPower: document.getElementById('btnCritPower'),
+                btnAutoClicker: document.getElementById('btnAutoClicker'),
+                costSharpClaws: document.getElementById('costSharpClaws'),
+                costCritChance: document.getElementById('costCritChance'),
+                costCritPower: document.getElementById('costCritPower'),
+                costAutoClicker: document.getElementById('costAutoClicker'),
+            };
+
+            // ──────────── FUNCIONES AUXILIARES ────────────
+            function getUpgradeCost(upgradeKey) {
+                const u = state.upgrades[upgradeKey];
+                return Math.floor(u.baseCost * Math.pow(u.costMult, u.level));
+            }
+
+            function formatNumber(n) {
+                if (n >= 1e12) return (n / 1e12).toFixed(2) + 'T';
+                if (n >= 1e9) return (n / 1e9).toFixed(2) + 'B';
+                if (n >= 1e6) return (n / 1e6).toFixed(2) + 'M';
+                if (n >= 1e3) return (n / 1e3).toFixed(1) + 'K';
+                return Math.floor(n).toString();
+            }
+
+            function clampHP(value) {
+                return Math.max(0, Math.min(state.enemyMaxHP, value));
+            }
+
+            // ──────────── ACTUALIZAR UI ────────────
+            function updateUI() {
+                els.goldDisplay.textContent = formatNumber(state.gold);
+                els.clickDmgDisplay.textContent = formatNumber(state.clickDamage);
+                els.dpsDisplay.textContent = formatNumber(state.dps) + '/s';
+                const critPct = Math.round(state.critChance * 100);
+                const critX = state.critMultiplier.toFixed(1);
+                els.critDisplay.textContent = critPct + '% / x' + critX;
+                els.enemyName.textContent = state.enemyName;
+                els.enemyLevel.textContent = state.enemyLevel;
+
+                const hpPct = (state.enemyHP / state.enemyMaxHP) * 100;
+                els.hpBar.style.width = hpPct + '%';
+                els.hpText.textContent = formatNumber(state.enemyHP) + ' / ' + formatNumber(state
+                .enemyMaxHP);
+
+                // Botones de mejora
+                updateUpgradeButton('sharpClaws', els.btnSharpClaws, els.costSharpClaws);
+                updateUpgradeButton('critChance', els.btnCritChance, els.costCritChance);
+                updateUpgradeButton('critPower', els.btnCritPower, els.costCritPower);
+                updateUpgradeButton('autoClicker', els.btnAutoClicker, els.costAutoClicker);
+
+                // Cambiar emoji según nivel
+                const emojis = ['🐲', '🐉', '🔥', '❄️', '🌑', '✨', '👑', '💀', '⚡', '🌟', '🔮', '🌀', '👁️',
+                '🕳️', '♾️'];
+                const idx = Math.min(state.enemyLevel - 1, emojis.length - 1);
+                els.enemySprite.textContent = emojis[idx];
+            }
+
+            function updateUpgradeButton(key, btnEl, costEl) {
+                const cost = getUpgradeCost(key);
+                const lvl = state.upgrades[key].level;
+                costEl.textContent = formatNumber(cost) + ' 🪙';
+                // Buscar el span de nivel o crearlo
+                let lvlSpan = btnEl.querySelector('.upgrade-level');
+                if (!lvlSpan) {
+                    lvlSpan = document.createElement('span');
+                    lvlSpan.className = 'upgrade-level';
+                    btnEl.querySelector('.upgrade-info').appendChild(lvlSpan);
+                }
+                lvlSpan.textContent = 'Nv.' + lvl;
+                if (state.gold < cost) {
+                    btnEl.classList.add('locked');
+                } else {
+                    btnEl.classList.remove('locked');
+                }
+            }
+
+            // ──────────── EFECTOS VISUALES ────────────
+            function spawnFloatingNumber(x, y, amount, isCrit, isGold) {
+                const el = document.createElement('div');
+                el.className = 'floating-number';
+                if (isCrit && !isGold) el.classList.add('crit');
+                if (isGold) el.classList.add('gold-pop');
+                el.textContent = (isGold ? '+' : '') + formatNumber(amount) + (isGold ? ' 🪙' : '');
+                el.style.left = x + 'px';
+                el.style.top = y + 'px';
+                els.enemyZone.appendChild(el);
+                el.addEventListener('animationend', () => el.remove());
+            }
+
+            function spawnParticles(x, y, count, color) {
+                for (let i = 0; i < count; i++) {
+                    const p = document.createElement('div');
+                    p.className = 'particle';
+                    const angle = Math.random() * Math.PI * 2;
+                    const dist = 25 + Math.random() * 55;
+                    p.style.setProperty('--dx', Math.cos(angle) * dist + 'px');
+                    p.style.setProperty('--dy', Math.sin(angle) * dist + 'px');
+                    p.style.left = x + 'px';
+                    p.style.top = y + 'px';
+                    p.style.width = (4 + Math.random() * 10) + 'px';
+                    p.style.height = p.style.width;
+                    p.style.background = color;
+                    p.style.boxShadow = '0 0 ' + (6 + Math.random() * 10) + 'px ' + color;
+                    els.enemyZone.appendChild(p);
+                    p.addEventListener('animationend', () => p.remove());
+                }
+            }
+
+            function shakeEnemy() {
+                els.enemySprite.classList.remove('shake');
+                void els.enemySprite.offsetWidth;
+                els.enemySprite.classList.add('shake');
+            }
+
+            function flashHPBar() {
+                els.hpBar.classList.remove('crit-flash');
+                void els.hpBar.offsetWidth;
+                els.hpBar.classList.add('crit-flash');
+            }
+
+            function showWaveMessage(text) {
+                els.waveMsg.textContent = text;
+                els.waveMsg.classList.remove('hide');
+                els.waveMsg.classList.add('show');
+                setTimeout(() => {
+                    els.waveMsg.classList.add('hide');
+                    els.waveMsg.classList.remove('show');
+                }, 1800);
+            }
+
+            // ──────────── LÓGICA DE DAÑO ────────────
+            function dealDamage(rawDamage, clickX, clickY) {
+                let finalDamage = rawDamage;
+                let isCrit = false;
+
+                if (Math.random() < state.critChance) {
+                    finalDamage = Math.floor(rawDamage * state.critMultiplier);
+                    isCrit = true;
+                    flashHPBar();
+                }
+
+                finalDamage = Math.max(1, finalDamage);
+                const actualDamage = Math.min(finalDamage, state.enemyHP);
+                state.enemyHP -= actualDamage;
+
+                // Efectos visuales
+                spawnFloatingNumber(clickX, clickY - 20, actualDamage, isCrit, false);
+                const particleColor = isCrit ? '#ff6b35' : '#ffcc44';
+                spawnParticles(clickX, clickY, isCrit ? 18 : 8, particleColor);
+                if (isCrit) shakeEnemy();
+
+                // Comprobar muerte del enemigo
+                if (state.enemyHP <= 0) {
+                    state.enemyHP = 0;
+                    onEnemyDefeated();
+                }
+
+                updateUI();
+            }
+
+            function onEnemyDefeated() {
+                // Recompensa de oro
+                const goldReward = Math.floor(state.enemyMaxHP * 0.4 * (1 + state.enemyLevel * 0.3));
+                state.gold += goldReward;
+                state.totalGoldEarned += goldReward;
+
+                // Mostrar oro flotante en el centro
+                const zoneRect = els.enemyZone.getBoundingClientRect();
+                const cx = zoneRect.width / 2;
+                const cy = zoneRect.height / 2 - 30;
+                spawnFloatingNumber(cx, cy, goldReward, false, true);
+
+                // Subir nivel
+                state.enemyLevel++;
+                const nameIdx = Math.min(state.enemyLevel - 1, state.enemyNames.length - 1);
+                state.enemyName = state.enemyNames[nameIdx];
+                state.enemyMaxHP = Math.floor(100 * Math.pow(1.35, state.enemyLevel - 1));
+                state.enemyHP = state.enemyMaxHP;
+
+                showWaveMessage('🏆 ' + state.enemyName + ' aparece!');
+                updateUI();
+            }
+
+            // ──────────── CLICK EN EL ENEMIGO ────────────
+            els.enemySprite.addEventListener('click', (e) => {
+                if (state.enemyHP <= 0) return; // ya muerto, esperando reset
+
+                const rect = els.enemyZone.getBoundingClientRect();
+                const clickX = e.clientX - rect.left;
+                const clickY = e.clientY - rect.top;
+
+                dealDamage(state.clickDamage, clickX, clickY);
+            });
+
+            // También permitir click en toda la zona del enemigo (barra de HP, etc.)
+            els.enemyZone.addEventListener('click', (e) => {
+                if (e.target === els.enemySprite) return; // ya manejado
+                if (state.enemyHP <= 0) return;
+                // Solo si clickeamos cerca del sprite
+                const rect = els.enemyZone.getBoundingClientRect();
+                const clickX = e.clientX - rect.left;
+                const clickY = e.clientY - rect.top;
+                const spriteRect = els.enemySprite.getBoundingClientRect();
+                const spriteCX = spriteRect.left + spriteRect.width / 2 - rect.left;
+                const spriteCY = spriteRect.top + spriteRect.height / 2 - rect.top;
+                const dist = Math.hypot(clickX - spriteCX, clickY - spriteCY);
+                if (dist < 120) {
+                    dealDamage(state.clickDamage, clickX, clickY);
+                }
+            });
+
+            // ──────────── COMPRAR MEJORAS ────────────
+            window.buyUpgrade = function(key) {
+                const cost = getUpgradeCost(key);
+                if (state.gold < cost) return;
+
+                state.gold -= cost;
+                state.upgrades[key].level++;
+
+                switch (key) {
+                    case 'sharpClaws':
+                        state.clickDamage += 1;
+                        break;
+                    case 'critChance':
+                        state.critChance = Math.min(0.75, state.critChance + 0.05);
+                        break;
+                    case 'critPower':
+                        state.critMultiplier += 0.5;
+                        break;
+                    case 'autoClicker':
+                        state.dps += 1;
+                        break;
+                }
+
+                updateUI();
+                // Pequeña animación de compra
+                spawnParticles(
+                    els.enemyZone.getBoundingClientRect().width / 2,
+                    els.enemyZone.getBoundingClientRect().height / 2,
+                    6,
+                    '#f4b41a'
+                );
+            };
+
+            // ──────────── DPS AUTOMÁTICO ────────────
+            let dpsAccumulator = 0;
+            setInterval(() => {
+                if (state.dps > 0 && state.enemyHP > 0) {
+                    dpsAccumulator += state.dps / 10; // 10 ticks por segundo
+                    if (dpsAccumulator >= 1) {
+                        const dmgToDeal = Math.floor(dpsAccumulator);
+                        dpsAccumulator -= dmgToDeal;
+                        const zoneRect = els.enemyZone.getBoundingClientRect();
+                        const cx = zoneRect.width / 2 + (Math.random() - 0.5) * 60;
+                        const cy = zoneRect.height / 2 - 30 + (Math.random() - 0.5) * 40;
+                        const actualDmg = Math.min(dmgToDeal, state.enemyHP);
+                        state.enemyHP -= actualDmg;
+                        spawnFloatingNumber(cx, cy, actualDmg, false, false);
+                        spawnParticles(cx, cy, 4, '#c77dff');
+                        if (state.enemyHP <= 0) {
+                            state.enemyHP = 0;
+                            onEnemyDefeated();
+                        }
+                        updateUI();
+                    }
+                }
+            }, 100);
+
+            // ──────────── GUARDADO EN LOCALSTORAGE ────────────
+            function saveGame() {
+                const data = {
+                    gold: state.gold,
+                    clickDamage: state.clickDamage,
+                    critChance: state.critChance,
+                    critMultiplier: state.critMultiplier,
+                    dps: state.dps,
+                    enemyHP: state.enemyHP,
+                    enemyMaxHP: state.enemyMaxHP,
+                    enemyLevel: state.enemyLevel,
+                    enemyName: state.enemyName,
+                    totalGoldEarned: state.totalGoldEarned,
+                    upgrades: state.upgrades,
+                };
+                try {
+                    localStorage.setItem('clickSlayerSave', JSON.stringify(data));
+                } catch (e) { /* ignorar */ }
+            }
+
+            function loadGame() {
+                try {
+                    const raw = localStorage.getItem('clickSlayerSave');
+                    if (raw) {
+                        const data = JSON.parse(raw);
+                        state.gold = data.gold ?? 0;
+                        state.clickDamage = data.clickDamage ?? 1;
+                        state.critChance = data.critChance ?? 0.05;
+                        state.critMultiplier = data.critMultiplier ?? 2.0;
+                        state.dps = data.dps ?? 0;
+                        state.enemyHP = data.enemyHP ?? 100;
+                        state.enemyMaxHP = data.enemyMaxHP ?? 100;
+                        state.enemyLevel = data.enemyLevel ?? 1;
+                        state.enemyName = data.enemyName ?? 'Dragón Bebé';
+                        state.totalGoldEarned = data.totalGoldEarned ?? 0;
+                        if (data.upgrades) {
+                            for (const key of Object.keys(state.upgrades)) {
+                                if (data.upgrades[key]) {
+                                    state.upgrades[key].level = data.upgrades[key].level ?? 0;
+                                }
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.log('No se pudo cargar la partida guardada.');
+                }
+            }
+
+            // Guardar periódicamente
+            setInterval(saveGame, 5000);
+            // Guardar al cerrar
+            window.addEventListener('beforeunload', saveGame);
+            // Guardar al cambiar de pestaña (mobile)
+            document.addEventListener('visibilitychange', () => {
+                if (document.hidden) saveGame();
+            });
+
+            // ──────────── INICIALIZAR ────────────
+            loadGame();
+            if (state.enemyHP <= 0) {
+                // Si el enemigo estaba muerto, regenerar
+                state.enemyHP = state.enemyMaxHP;
+            }
+            updateUI();
+            console.log('🐉 Click Slayer listo. ¡Derrota al dragón!');
+            console.log('💾 Progreso guardado automáticamente en localStorage.');
+        })();
+    </script>
+</body>
+</html>
